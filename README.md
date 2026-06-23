@@ -1,4 +1,4 @@
-# codebase-qa
+# RepoTome
  
 Ask natural-language questions about any GitHub repository and get cited answers that point to the exact files and line numbers where the answer lives.
  
@@ -23,7 +23,7 @@ Built with OpenAI embeddings, ChromaDB, and FastAPI. Designed as a portfolio pro
 |---|---|
 | Embeddings | OpenAI `text-embedding-3-small` |
 | Vector DB | ChromaDB (local) → Qdrant (production) |
-| LLM | OpenAI `gpt-4o-mini` |
+| LLM | Anthropic `claude-haiku-4-5` |
 | Chunking | tree-sitter (AST-aware, by function/class) |
 | Backend | FastAPI + Python 3.11 |
 | Frontend | Next.js 14 |

@@ -1,2 +1,6 @@
 .python-version
 venv/
+.env
+.chroma
+repos/
+src/__pycache__
