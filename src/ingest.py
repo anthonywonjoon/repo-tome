@@ -33,17 +33,48 @@ SKIP_DIRS = {
 }
 
 def clone_repo(repo_url: str) -> Path:
-    # Get the repository name out of the repo
     repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
     local_path = Path(REPOS_DIR) / repo_name
 
     if local_path.exists():
-        console.print(f"Repo already cloned at {local_path}, skipping clone")
+        console.print(f"Repo already cloned at {local_path}, skipping clone.")
         return local_path
-    
+
     console.print(f"Cloning {repo_url}...")
-    Repo.clone_from(repo_url, local_path, depth=1)
-    console.print(f"Clone to {local_path}")
+
+    # Tell git never to prompt for credentials — fail immediately instead
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GIT_ASKPASS"] = "echo"
+
+    try:
+        Repo.clone_from(
+            repo_url,
+            local_path,
+            depth=1,
+            kill_after_timeout=15,
+            env=env,
+        )
+    except Exception as e:
+        if local_path.exists():
+            shutil.rmtree(local_path)
+
+        err = str(e).lower()
+
+        if any(word in err for word in ["authentication", "auth", "403", "401", "could not read", "repository not found", "terminal prompts disabled"]):
+            raise ValueError(
+                "Could not access this repository. It may be private — "
+                "only public repositories are supported right now."
+            )
+        elif "timeout" in err or "timed out" in err or "kill_after_timeout" in err:
+            raise ValueError(
+                "Cloning timed out. The repo may be private or unreachable. "
+                "Only public repositories are supported right now."
+            )
+        else:
+            raise ValueError(f"Failed to clone repo: {str(e)}")
+
+    console.print(f"Cloned to {local_path}")
     return local_path
 
 def get_code_files(repo_path: Path) -> list[Path]:

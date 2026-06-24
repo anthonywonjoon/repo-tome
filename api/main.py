@@ -43,8 +43,10 @@ def run_ingest(repo_url: str, repo_name: str):
         indexing_status[repo_name] = "indexing"
         ingest(repo_url)
         indexing_status[repo_name] = "ready"
-    except Exception as e:
+    except ValueError as e:
         indexing_status[repo_name] = f"error: {str(e)}"
+    except Exception as e:
+        indexing_status[repo_name] = f"error: Something went wrong while indexing — {str(e)}"
 
 # Routes ---
 
