@@ -1,6 +1,10 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import chromadb
 import json
 from pathlib import Path
@@ -9,11 +13,16 @@ from src.ingest import ingest
 from src.query import ask
 from src.config import CHROMA_DIR
 
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="repo-tome",
     description="Ask natural language questions about any public Github repository",
     version="0.1.0"
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -70,13 +79,14 @@ def health():
 
 # Starts indexing the Github repo, runs in the background
 @app.post("/ingest")
-def ingest_repo(request: IngestRequest, background_tasks: BackgroundTasks):
-    repo_name = request.repo_url.rstrip("/").split("/")[-1].replace(".git", "")
+@limiter.limit("3/hour")
+async def ingest_repo(request: Request, body: IngestRequest, background_tasks: BackgroundTasks):
+    repo_name = body.repo_url.rstrip("/").split("/")[-1].replace(".git", "")
 
     if indexing_status.get(repo_name) == "indexing":
         raise HTTPException(status_code=409, detail=f"'{repo_name}' is already being indexed")
     
-    background_tasks.add_task(run_ingest, request.repo_url, repo_name)
+    background_tasks.add_task(run_ingest, body.repo_url, repo_name)
     indexing_status[repo_name] = "indexing"
 
     return {"message": f"Indexing '{repo_name}' started", "repo_name": repo_name}
@@ -118,18 +128,19 @@ def delete_repo(repo_name: str):
     
 # Ask a question about an indexed repo
 @app.post("/query", response_model=QueryResponse)
-def query_repo(request: QueryRequest):
+@limiter.limit("20/hour;5/minute")
+async def query_repo(request: Request, body: QueryRequest):
     client = chromadb.PersistentClient(path=CHROMA_DIR)
     collections = [c.name for c in client.list_collections()]
 
-    if request.repo_name not in collections:
-        raise HTTPException(status_code=404, detail=f"'{request.repo_name}' is not indexed yet")
+    if body.repo_name not in collections:
+        raise HTTPException(status_code=404, detail=f"'{body.repo_name}' is not indexed yet")
     
-    if indexing_status.get(request.repo_name) == "indexing":
-        raise HTTPException(status_code=409, detail=f"'{request.repo_name}' is still indexing")
+    if indexing_status.get(body.repo_name) == "indexing":
+        raise HTTPException(status_code=409, detail=f"'{body.repo_name}' is still indexing")
     
-    answer, sources = ask(request.repo_name, request.question)
-    repo_url = get_repo_url(request.repo_name)
+    answer, sources = ask(body.repo_name, body.question)
+    repo_url = get_repo_url(body.repo_name)
 
     for source in sources:
         if repo_url:
