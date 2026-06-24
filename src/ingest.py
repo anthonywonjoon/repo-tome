@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 
 import chromadb
+import json
 from git import Repo
 from openai import OpenAI
 from rich.console import Console
@@ -124,6 +125,11 @@ def store_in_chroma(repo_name: str, chunks: list[dict], embeddings: list[list[fl
 def ingest(repo_url: str):
     repo_path = clone_repo(repo_url)
     repo_name = repo_path.name
+    
+    meta_path = Path(CHROMA_DIR) / f"{repo_name}.json"
+    meta_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(meta_path, "w") as f:
+        json.dump({"repo_url": repo_url.rstrip("/").replace(".git", "")}, f)
 
     console.print("Scanning files...")
     files = get_code_files(repo_path)
