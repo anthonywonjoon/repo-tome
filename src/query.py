@@ -79,12 +79,23 @@ def ask(repo_name: str, question: str):
 
     answer = message.content[0].text
 
-    console.print(Panel(Markdown(answer), title="Answer", border_style="green"))
+    sources = [
+        {
+            "file": c["metadata"]["file"],
+            "start_line": c["metadata"]["start_line"],
+            "end_line": c["metadata"]["end_line"],
+            "name": c["metadata"].get("name") or "",
+        }
+        for c in chunks
+    ]
 
+    console.print(Panel(Markdown(answer), title="Answer", border_style="green"))
     console.print("\nSources:")
-    for i, chunk in enumerate(chunks):
-        meta = chunk["metadata"]
-        console.print(f"  [{i+1}] {meta['file']}  lines {meta['start_line']}–{meta['end_line']}")
+    for i, s in enumerate(sources):
+        label = f" ({s['name']})" if s["name"] else ""
+        console.print(f" [{i+1}] {s['file']}{label} lines {s['start_line']}-{s['end_line']}")
+    
+    return answer, sources
 
 if __name__ == "__main__":
     import sys

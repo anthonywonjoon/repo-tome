@@ -4,3 +4,4 @@ venv/
 .chroma
 repos/
 src/__pycache__
+api/__pycache__

@@ -12,3 +12,6 @@ tree-sitter-typescript==0.21.2
 tree-sitter-go==0.21.2
 tree-sitter-rust==0.21.2
 tree-sitter-java==0.21.0
+fastapi>=0.111.0
+uvicorn>=0.30.0
+pydantic>=2.0.0
