@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import chromadb
+import json
+from pathlib import Path
 
 from src.ingest import ingest
 from src.query import ask
@@ -19,6 +21,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+def get_repo_url(repo_name: str) -> str | None:
+    meta_path = Path(CHROMA_DIR) / f"{repo_name}.json"
+    try:
+        with open(meta_path) as f:
+            return json.load(f).get("repo_url")
+    except Exception:
+        return None
 
 indexing_status: dict[str, str] = {}
 
@@ -119,4 +129,12 @@ def query_repo(request: QueryRequest):
         raise HTTPException(status_code=409, detail=f"'{request.repo_name}' is still indexing")
     
     answer, sources = ask(request.repo_name, request.question)
-    return QueryResponse(answer=answer, sources=sources)
+    repo_url = get_repo_url(request.repo_name)
+
+    for source in sources:
+        if repo_url:
+            source["url"] = f"{repo_url}/blob/main/{source['file']}#L{source['start_line']}-L{source['end_line']}"
+        else:
+            source["url"] = None
+
+    return {"answer": answer, "sources": sources}

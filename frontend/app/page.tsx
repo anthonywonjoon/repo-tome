@@ -10,6 +10,7 @@ type Source = {
   start_line: number;
   end_line: number;
   name: string;
+  url: string | null;
 };
 
 type Message = {
@@ -176,7 +177,7 @@ export default function Home() {
       <header className="flex items-center justify-between px-5 py-3 border-b border-[#2a2a2a] bg-[#111] flex-shrink-0">
         <div className="flex items-center gap-2">
           <TomeIcon size={20} />
-          <span className="text-[14px] font-medium text-[#e8e8e8] tracking-tight">repo-tome</span>
+          <span className="text-[14px] font-medium text-[#e8e8e8] tracking-tight"><a target="_blank" href="https://github.com/anthonywonjoon/repo-tome">RepoTome</a></span>
         </div>
         <span className="text-[11px] text-[#3a3a3a]">
           {repos.length > 0 ? `${repos.length} repo${repos.length !== 1 ? "s" : ""} indexed` : "no repos indexed"}
@@ -204,13 +205,13 @@ export default function Home() {
         </div>
       )}
       {/* Index new repo */}
-      <div className="flex items-center gap-2 px-5 py-2 border-b border-[#222] bg-[#0e0e0e] flex-shrink-0">
-        <div className="flex gap-2 w-full max-w-full">
+      <div className="flex flex-col gap-1 px-5 py-2 border-b border-[#222] bg-[#0e0e0e] flex-shrink-0">
+        <div className="flex gap-2 w-full">
           <input
             className="flex-1 bg-[#1c1c1c] border border-[#2e2e2e] rounded-lg px-3.5 py-1.5 text-[12px] text-[#888] placeholder-[#3a3a3a] outline-none focus:border-[#3a3a3a] transition-colors disabled:opacity-40"
             placeholder="https://github.com/owner/repo"
             value={repoUrl}
-            onChange={(e) => setRepoUrl(e.target.value)}
+            onChange={(e) => { setRepoUrl(e.target.value); setError(""); }}
             onKeyDown={(e) => e.key === "Enter" && handleIngest()}
             disabled={indexing ? true : false}
           />
@@ -222,8 +223,12 @@ export default function Home() {
             {indexing ? "Indexing…" : "Index repo"}
           </button>
         </div>
+        {error && (
+          <div className="text-[12px] text-red-400 bg-red-950/40 border border-red-900/50 rounded-lg px-3.5 py-2">
+            {error}
+          </div>
+        )}
       </div>
-
       {/* Chat body */}
       <div className="flex-1 overflow-y-auto flex flex-col items-center px-4">
         {messages.length === 0 && !indexing ? (
@@ -280,13 +285,24 @@ export default function Home() {
                     <div className="mt-3 pt-3 border-t border-[#2a2a2a]">
                       <p className="text-[10px] font-medium text-[#444] uppercase tracking-widest mb-1.5">Sources</p>
                       <div className="flex flex-wrap gap-1">
-                        {msg.sources.map((s, j) => (
-                          <span key={j} className="inline-flex items-center gap-1 bg-[#141414] border border-[#2a2a2a] rounded-md px-2 py-1 font-mono text-[10px] text-[#666]">
-                            <span className="text-[#aaa]">{s.file}</span>
-                            {s.name && <span className="text-[#4a9eff]">({s.name})</span>}
-                            <span className="text-[#444]">:{s.start_line}–{s.end_line}</span>
-                          </span>
-                        ))}
+                        {msg.sources.map((s, j) => {
+                          const chip = (
+                            <span className="inline-flex items-center gap-1 bg-[#141414] border border-[#2a2a2a] rounded-md px-2 py-1 font-mono text-[10px] text-[#666] hover:border-[#3a3a3a] transition-colors">
+                              <span className="text-[#aaa]">{s.file}</span>
+                              {s.name && <span className="text-[#4a9eff]">({s.name})</span>}
+                              <span className="text-[#444]">:{s.start_line}–{s.end_line}</span>
+                              {s.url && <span className="text-[#3a3a3a] ml-0.5">↗</span>}
+                            </span>
+                          );
+
+                          return s.url ? (
+                            <a key={j} href={s.url} target="_blank" rel="noopener noreferrer" className="no-underline">
+                              {chip}
+                            </a>
+                          ) : (
+                            <span key={j}>{chip}</span>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -310,15 +326,6 @@ export default function Home() {
           </div>
         )}
       </div>
-
-      {/* Error */}
-      {error && (
-        <div className="flex-shrink-0 mx-4 mb-2">
-          <div className="max-w-[640px] mx-auto text-[12px] text-red-400 bg-red-950/40 border border-red-900/50 rounded-lg px-3.5 py-2">
-            {error}
-          </div>
-        </div>
-      )}
 
       {/* Footer input */}
       <div className="flex-shrink-0 px-4 pb-5 pt-3 border-t border-[#2a2a2a] bg-[#111] flex flex-col items-center gap-2">
