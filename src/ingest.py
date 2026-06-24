@@ -7,6 +7,7 @@ from git import Repo
 from openai import OpenAI
 from rich.console import Console
 from rich.progress import track
+from src.chunker import chunk_file
 
 from src.config import (
     OPENAI_API_KEY,
@@ -54,38 +55,6 @@ def get_code_files(repo_path: Path) -> list[Path]:
             files.append(path)
     return files
 
-def chunk_file(file_path: Path, repo_path: Path) -> list[dict]:
-    try:
-        content = file_path.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
-        return []
-    
-    lines = content.splitlines()
-    if not lines:
-        return []
-    
-    chunks = []
-    start = 0
-
-    while start < len(lines):
-        end = min(start + CHUNK_SIZE, len(lines))
-        chunk_lines = lines[start:end]
-        chunk_text = "\n".join(chunk_lines)
-
-        relative_path = str(file_path.relative_to(repo_path))
-
-        chunks.append({
-            "text": chunk_text,
-            "file": relative_path,
-            "start_line": start + 1,
-            "end_line": end,
-            "language": file_path.suffix.lstrip(".")
-        })
-
-        start += CHUNK_SIZE - CHUNK_OVERLAP
-
-    return chunks
-
 def embed_chunks(chunks: list[dict]) -> list[list[float]]:
     texts = [c["text"] for c in chunks]
 
@@ -112,7 +81,8 @@ def store_in_chroma(repo_name: str, chunks: list[dict], embeddings: list[list[fl
             "file": c["file"],
             "start_line": c["start_line"],
             "end_line": c["end_line"],
-            "language": c["language"]
+            "language": c["language"],
+            "name": c.get("name") or ""
         }
         for c in chunks
     ]
@@ -128,10 +98,11 @@ def ingest(repo_url: str):
     files = get_code_files(repo_path)
     console.print(f"Found {len(files)} source files")
 
-    console.print("Chunking files...")
+    console.print(f"Chunking files...")
     all_chunks = []
     for file in files:
         all_chunks.extend(chunk_file(file, repo_path))
+    all_chunks = [c for c in all_chunks if c["text"].strip()]
     console.print(f"Created {len(all_chunks)} chunks")
 
     embeddings = embed_chunks(all_chunks)
