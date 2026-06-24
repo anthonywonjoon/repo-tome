@@ -85,7 +85,7 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
         if (res.status === 409) {
           setActiveRepo(name);
@@ -94,6 +94,8 @@ export default function Home() {
           setRepoUrl("");
           await fetchRepos();
           return;
+        } else if (res.status === 429) {
+          throw new Error("429");
         }
         throw new Error(data.detail || "Ingest failed");
       }
@@ -141,7 +143,10 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          throw new Error("429");
+        }
         throw new Error(data.detail || "Query failed");
       }
 
@@ -151,7 +156,11 @@ export default function Home() {
         { role: "assistant", content: data.answer, sources: data.sources }
       ]);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      if (e instanceof Error && e.message.includes("429")) {
+        setError("Rate limit reached - please wait a minute before trying again");
+      } else {
+        setError(e instanceof Error ? e.message : "Something went wrong");
+      }
     } finally {
       setLoading(false);
     }
