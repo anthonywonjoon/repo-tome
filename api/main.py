@@ -8,6 +8,7 @@ from slowapi.errors import RateLimitExceeded
 import chromadb
 import json
 from pathlib import Path
+import os
 
 from src.ingest import ingest
 from src.query import ask
@@ -26,7 +27,12 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https//repo-tome.com",
+        "https://www.repo-tome.com",
+        os.getenv("FRONTEND_URL", "")
+    ],
     allow_methods=["*"],
     allow_headers=["*"]
 )
